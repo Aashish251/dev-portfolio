@@ -10,10 +10,10 @@ export default function NetworkScene() {
     const par = cv.parentElement;
 
     const W = par.clientWidth || 600;
-    const H = 250;
+    const H = par.clientHeight || 250;
 
-    const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     renderer.setClearColor(0x041228);
     renderer.setSize(W, H);
 
@@ -25,12 +25,18 @@ export default function NetworkScene() {
     const nGeo = new THREE.SphereGeometry(0.13, 12, 12);
     const nC = [0x6eb5ff, 0x6ee7b7, 0xf4845f, 0x7c3aed];
 
+    // Pre-create shared materials
+    const nodeMaterials = nC.map(
+      (c) => new THREE.MeshPhongMaterial({ color: c, emissive: c, emissiveIntensity: 0.3 })
+    );
+
     for (let i = 0; i < 20; i++) {
-      const m = new THREE.Mesh(
-        nGeo.clone(),
-        new THREE.MeshPhongMaterial({ color: nC[i % 4], emissive: nC[i % 4], emissiveIntensity: 0.3 })
+      const m = new THREE.Mesh(nGeo, nodeMaterials[i % 4]);
+      m.position.set(
+        (Math.random() - 0.5) * 7,
+        (Math.random() - 0.5) * 3.5,
+        (Math.random() - 0.5) * 2
       );
-      m.position.set((Math.random() - 0.5) * 7, (Math.random() - 0.5) * 3.5, (Math.random() - 0.5) * 2);
       m._v = new THREE.Vector3(
         (Math.random() - 0.5) * 0.012,
         (Math.random() - 0.5) * 0.012,
@@ -40,8 +46,21 @@ export default function NetworkScene() {
       scene.add(m);
     }
 
-    const eGrp = new THREE.Group();
-    scene.add(eGrp);
+    // Pre-allocate line geometry with a pool to avoid GC churn
+    const maxEdges = (20 * 19) / 2;
+    const edgePositions = new Float32Array(maxEdges * 6);
+    const edgeGeometry = new THREE.BufferGeometry();
+    const posAttr = new THREE.BufferAttribute(edgePositions, 3);
+    posAttr.setUsage(THREE.DynamicDrawUsage);
+    edgeGeometry.setAttribute('position', posAttr);
+
+    const edgeMaterial = new THREE.LineBasicMaterial({
+      color: 0x6eb5ff,
+      transparent: true,
+      opacity: 0.4,
+    });
+    const edgeMesh = new THREE.LineSegments(edgeGeometry, edgeMaterial);
+    scene.add(edgeMesh);
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.5));
     const pl = new THREE.PointLight(0x6eb5ff, 2, 14);
@@ -52,8 +71,7 @@ export default function NetworkScene() {
     const loop = () => {
       rafId = requestAnimationFrame(loop);
 
-      while (eGrp.children.length) eGrp.remove(eGrp.children[0]);
-
+      let edgeIndex = 0;
       nodes.forEach((n) => {
         n.position.add(n._v);
         ['x', 'y', 'z'].forEach((ax) => {
@@ -66,26 +84,41 @@ export default function NetworkScene() {
         for (let j = i + 1; j < nodes.length; j++) {
           const d = nodes[i].position.distanceTo(nodes[j].position);
           if (d < 2.8) {
-            const g = new THREE.BufferGeometry().setFromPoints([
-              nodes[i].position.clone(),
-              nodes[j].position.clone(),
-            ]);
-            eGrp.add(
-              new THREE.Line(
-                g,
-                new THREE.LineBasicMaterial({ color: 0x6eb5ff, transparent: true, opacity: 1 - d / 2.8 })
-              )
-            );
+            const base = edgeIndex * 6;
+            edgePositions[base] = nodes[i].position.x;
+            edgePositions[base + 1] = nodes[i].position.y;
+            edgePositions[base + 2] = nodes[i].position.z;
+            edgePositions[base + 3] = nodes[j].position.x;
+            edgePositions[base + 4] = nodes[j].position.y;
+            edgePositions[base + 5] = nodes[j].position.z;
+            edgeIndex++;
           }
         }
       }
+
+      edgeGeometry.setDrawRange(0, edgeIndex * 2);
+      posAttr.needsUpdate = true;
 
       renderer.render(scene, camera);
     };
     loop();
 
+    const handleResize = () => {
+      const nW = par.clientWidth || 600;
+      const nH = par.clientHeight || 250;
+      renderer.setSize(nW, nH);
+      camera.aspect = nW / nH;
+      camera.updateProjectionMatrix();
+    };
+    window.addEventListener('resize', handleResize);
+
     return () => {
       cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', handleResize);
+      nGeo.dispose();
+      nodeMaterials.forEach((m) => m.dispose());
+      edgeGeometry.dispose();
+      edgeMaterial.dispose();
       renderer.dispose();
     };
   }, []);

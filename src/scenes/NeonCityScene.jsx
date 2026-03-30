@@ -10,10 +10,10 @@ export default function NeonCityScene() {
     const par = cv.parentElement;
 
     const W = par.clientWidth || 600;
-    const H = 250;
+    const H = par.clientHeight || 250;
 
-    const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     renderer.setClearColor(0x0a0018);
     renderer.setSize(W, H);
 
@@ -22,9 +22,12 @@ export default function NeonCityScene() {
     camera.position.set(0, 3.5, 7);
     camera.lookAt(0, 0, 0);
 
-    scene.add(new THREE.GridHelper(20, 20, 0x4f46e5, 0x1a0b4e));
+    const grid = new THREE.GridHelper(20, 20, 0x4f46e5, 0x1a0b4e);
+    scene.add(grid);
 
     const bc = [0xf4845f, 0x4f46e5, 0x6eb5ff, 0x7c3aed, 0x6ee7b7];
+    const buildings = [];
+
     for (let i = 0; i < 28; i++) {
       const bh = 0.4 + Math.random() * 2.8;
       const g = new THREE.BoxGeometry(0.45, 0.45 + bh, 0.45);
@@ -36,26 +39,24 @@ export default function NeonCityScene() {
       });
       const mesh = new THREE.Mesh(g, m);
       mesh.position.set((Math.random() - 0.5) * 9, bh / 2, (Math.random() - 0.5) * 9);
+      buildings.push({ geometry: g, material: m, mesh });
       scene.add(mesh);
     }
 
-    // Particles
-    const pP = new Float32Array(600 * 3);
-    for (let i = 0; i < 600; i++) {
+    const pCount = 600;
+    const pP = new Float32Array(pCount * 3);
+    for (let i = 0; i < pCount; i++) {
       pP[i * 3] = (Math.random() - 0.5) * 18;
       pP[i * 3 + 1] = Math.random() * 5;
       pP[i * 3 + 2] = (Math.random() - 0.5) * 18;
     }
     const pG = new THREE.BufferGeometry();
     pG.setAttribute('position', new THREE.BufferAttribute(pP, 3));
-    scene.add(
-      new THREE.Points(
-        pG,
-        new THREE.PointsMaterial({ color: 0x6eb5ff, size: 0.07, transparent: true, opacity: 0.55 })
-      )
-    );
+    const pM = new THREE.PointsMaterial({ color: 0x6eb5ff, size: 0.07, transparent: true, opacity: 0.55 });
+    scene.add(new THREE.Points(pG, pM));
 
-    scene.add(new THREE.AmbientLight(0x4f46e5, 0.5));
+    const ambLight = new THREE.AmbientLight(0x4f46e5, 0.5);
+    scene.add(ambLight);
     const dl = new THREE.DirectionalLight(0xf4845f, 1.5);
     dl.position.set(5, 8, 5);
     scene.add(dl);
@@ -71,8 +72,26 @@ export default function NeonCityScene() {
     };
     loop();
 
+    const handleResize = () => {
+      const nW = par.clientWidth || 600;
+      const nH = par.clientHeight || 250;
+      renderer.setSize(nW, nH);
+      camera.aspect = nW / nH;
+      camera.updateProjectionMatrix();
+    };
+    window.addEventListener('resize', handleResize);
+
     return () => {
       cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', handleResize);
+      buildings.forEach(({ geometry, material }) => {
+        geometry.dispose();
+        material.dispose();
+      });
+      grid.geometry.dispose();
+      grid.material.dispose();
+      pG.dispose();
+      pM.dispose();
       renderer.dispose();
     };
   }, []);

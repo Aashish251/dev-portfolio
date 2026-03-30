@@ -1,62 +1,91 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 
 export default function CustomCursor() {
   const dotRef = useRef(null);
   const ringRef = useRef(null);
+  const labelRef = useRef(null);
+  const [isTouch, setIsTouch] = useState(false);
 
   useEffect(() => {
-    let mx = 0, my = 0, rx = 0, ry = 0;
+    // Detect touch device — skip cursor entirely
+    const hasCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
+    if (hasCoarsePointer) {
+      setIsTouch(true);
+      return;
+    }
 
-    const handleMouseMove = (e) => {
-      mx = e.clientX;
-      my = e.clientY;
-      gsap.set(dotRef.current, { x: mx, y: my });
+    let mouseX = 0;
+    let mouseY = 0;
+    let ringX = 0;
+    let ringY = 0;
+
+    const setMode = (modeText = '') => {
+      if (!ringRef.current || !labelRef.current) return;
+
+      ringRef.current.classList.remove('big', 'view');
+      labelRef.current.textContent = '';
+
+      if (!modeText) return;
+
+      ringRef.current.classList.add(modeText === 'View' ? 'view' : 'big');
+      labelRef.current.textContent = modeText;
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-
-    let raf;
-    const track = () => {
-      rx += (mx - rx) * 0.13;
-      ry += (my - ry) * 0.13;
-      gsap.set(ringRef.current, { x: rx, y: ry });
-      raf = requestAnimationFrame(track);
+    const handleMove = (event) => {
+      mouseX = event.clientX;
+      mouseY = event.clientY;
+      gsap.set(dotRef.current, { x: mouseX, y: mouseY });
     };
-    track();
 
-    // Enlarge ring on interactive elements
-    const addBig = () => ringRef.current?.classList.add('big');
-    const removeBig = () => ringRef.current?.classList.remove('big');
+    const handleOver = (event) => {
+      const target = event.target.closest('a, button, [data-cursor], .proj-card, .sk-row, .ach-card');
+      if (!target) return;
 
-    const observer = new MutationObserver(() => {
-      document.querySelectorAll('a, button, .proj-card, .sk-row, .ach-card').forEach(el => {
-        el.removeEventListener('mouseenter', addBig);
-        el.removeEventListener('mouseleave', removeBig);
-        el.addEventListener('mouseenter', addBig);
-        el.addEventListener('mouseleave', removeBig);
-      });
-    });
+      const modeText = target.getAttribute('data-cursor') || '';
+      setMode(modeText || ' ');
 
-    observer.observe(document.body, { childList: true, subtree: true });
+      if (!modeText && ringRef.current) {
+        ringRef.current.classList.add('big');
+      }
+    };
 
-    // Initial bind
-    document.querySelectorAll('a, button, .proj-card, .sk-row, .ach-card').forEach(el => {
-      el.addEventListener('mouseenter', addBig);
-      el.addEventListener('mouseleave', removeBig);
-    });
+    const handleOut = (event) => {
+      const target = event.target.closest('a, button, [data-cursor], .proj-card, .sk-row, .ach-card');
+      if (!target) return;
+      setMode('');
+    };
+
+    window.addEventListener('mousemove', handleMove, { passive: true });
+    document.addEventListener('mouseover', handleOver);
+    document.addEventListener('mouseout', handleOut);
+
+    let rafId = 0;
+    const loop = () => {
+      ringX += (mouseX - ringX) * 0.14;
+      ringY += (mouseY - ringY) * 0.14;
+      gsap.set(ringRef.current, { x: ringX, y: ringY });
+      rafId = requestAnimationFrame(loop);
+    };
+    loop();
 
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      cancelAnimationFrame(raf);
-      observer.disconnect();
+      window.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseover', handleOver);
+      document.removeEventListener('mouseout', handleOut);
+      cancelAnimationFrame(rafId);
     };
   }, []);
+
+  // Don't render cursor elements on touch devices at all
+  if (isTouch) return null;
 
   return (
     <>
       <div id="c-dot" ref={dotRef}></div>
-      <div id="c-ring" ref={ringRef}></div>
+      <div id="c-ring" ref={ringRef}>
+        <span className="cursor-label" ref={labelRef}></span>
+      </div>
     </>
   );
 }

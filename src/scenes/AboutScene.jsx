@@ -15,9 +15,10 @@ export default function AboutScene() {
     const renderer = new THREE.WebGLRenderer({
       canvas,
       alpha: true,
-      antialias: true,
+      antialias: false,
+      powerPreference: 'high-performance',
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setSize(width, height);
 
     const scene = new THREE.Scene();
@@ -93,7 +94,7 @@ export default function AboutScene() {
       ringGroup.add(ring);
     });
 
-    const particleCount = 1800;
+    const particleCount = 720;
     const particlePositions = new Float32Array(particleCount * 3);
     const particleColors = new Float32Array(particleCount * 3);
     const palette = [
