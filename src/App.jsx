@@ -3,6 +3,7 @@ import BackgroundMotion from './components/BackgroundMotion';
 import CustomCursor from './components/CustomCursor';
 import Loader from './components/Loader';
 import Navbar from './components/Navbar';
+import ScrollProgress from './components/ScrollProgress';
 import Home from './pages/Home';
 
 function App() {
@@ -19,11 +20,14 @@ function App() {
       {isLoading ? <Loader onComplete={() => setIsLoading(false)} /> : null}
       <BackgroundMotion theme={theme} />
       <CustomCursor />
+      <ScrollProgress />
       <Navbar
         theme={theme}
         onToggleTheme={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
       />
-      <Home animateIntro={!isLoading} />
+      <main id="main-content" role="main">
+        <Home animateIntro={!isLoading} />
+      </main>
     </>
   );
 }

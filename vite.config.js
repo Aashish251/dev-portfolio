@@ -8,7 +8,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           three: ['three'],
-          vendor: ['react', 'react-dom', 'react-router-dom'],
+          vendor: ['react', 'react-dom'],
           gsap: ['gsap'],
         },
       },

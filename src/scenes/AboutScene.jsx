@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { cappedDevicePixelRatio } from '../lib/canvasQuality';
 
-export default function AboutScene() {
+export default function AboutScene({ theme = 'dark' }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -11,6 +12,7 @@ export default function AboutScene() {
     const parent = canvas.parentElement;
     const width = parent.clientWidth || 460;
     const height = parent.clientHeight || 460;
+    const low = width < 500;
 
     const renderer = new THREE.WebGLRenderer({
       canvas,
@@ -18,12 +20,13 @@ export default function AboutScene() {
       antialias: false,
       powerPreference: 'high-performance',
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.setPixelRatio(cappedDevicePixelRatio(width));
     renderer.setSize(width, height);
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(48, width / height, 0.1, 100);
     camera.position.set(0, 0.2, 6.5);
+    const isLight = theme === 'light';
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambient);
@@ -46,12 +49,12 @@ export default function AboutScene() {
     const core = new THREE.Mesh(
       new THREE.IcosahedronGeometry(1.25, 1),
       new THREE.MeshPhysicalMaterial({
-        color: 0xf7d7c8,
-        emissive: 0x5b4bf2,
-        emissiveIntensity: 0.35,
-        roughness: 0.12,
+        color: isLight ? 0xf4ecff : 0xf7d7c8,
+        emissive: isLight ? 0x8f7cff : 0x5b4bf2,
+        emissiveIntensity: isLight ? 0.18 : 0.35,
+        roughness: isLight ? 0.2 : 0.12,
         metalness: 0.18,
-        transmission: 0.45,
+        transmission: isLight ? 0.62 : 0.45,
         thickness: 0.8,
         clearcoat: 1,
         clearcoatRoughness: 0.08,
@@ -62,10 +65,10 @@ export default function AboutScene() {
     const wireShell = new THREE.Mesh(
       new THREE.IcosahedronGeometry(1.72, 2),
       new THREE.MeshBasicMaterial({
-        color: 0x6eb5ff,
+        color: isLight ? 0x8caee8 : 0x6eb5ff,
         wireframe: true,
         transparent: true,
-        opacity: 0.18,
+        opacity: isLight ? 0.26 : 0.18,
       })
     );
     group.add(wireShell);
@@ -81,20 +84,20 @@ export default function AboutScene() {
 
     ringConfigs.forEach(({ radius, tube, color, rotation }) => {
       const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(radius, tube, 24, 160),
+        new THREE.TorusGeometry(radius, tube, low ? 14 : 24, low ? 96 : 160),
         new THREE.MeshPhongMaterial({
           color,
           emissive: color,
-          emissiveIntensity: 0.25,
+          emissiveIntensity: isLight ? 0.16 : 0.25,
           transparent: true,
-          opacity: 0.75,
+          opacity: isLight ? 0.62 : 0.75,
         })
       );
       ring.rotation.set(rotation[0], rotation[1], rotation[2]);
       ringGroup.add(ring);
     });
 
-    const particleCount = 720;
+    const particleCount = low ? 420 : 720;
     const particlePositions = new Float32Array(particleCount * 3);
     const particleColors = new Float32Array(particleCount * 3);
     const palette = [
@@ -126,10 +129,10 @@ export default function AboutScene() {
     const particles = new THREE.Points(
       particleGeometry,
       new THREE.PointsMaterial({
-        size: 0.03,
+        size: isLight ? 0.026 : 0.03,
         vertexColors: true,
         transparent: true,
-        opacity: 0.7,
+        opacity: isLight ? 0.48 : 0.7,
       })
     );
     scene.add(particles);
@@ -179,17 +182,21 @@ export default function AboutScene() {
     const handleResize = () => {
       const nextWidth = parent.clientWidth || 460;
       const nextHeight = parent.clientHeight || 460;
+      renderer.setPixelRatio(cappedDevicePixelRatio(nextWidth));
       renderer.setSize(nextWidth, nextHeight);
       camera.aspect = nextWidth / nextHeight;
       camera.updateProjectionMatrix();
     };
 
     window.addEventListener('resize', handleResize);
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(parent);
 
     return () => {
       cancelAnimationFrame(rafId);
       parent.removeEventListener('mousemove', handleMove);
       window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       particleGeometry.dispose();
       core.geometry.dispose();
       core.material.dispose();
@@ -201,7 +208,7 @@ export default function AboutScene() {
       });
       renderer.dispose();
     };
-  }, []);
+  }, [theme]);
 
   return <canvas id="about-canvas" ref={canvasRef} />;
 }

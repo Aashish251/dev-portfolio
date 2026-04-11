@@ -5,7 +5,7 @@ import AboutScene from '../scenes/AboutScene';
 
 gsap.registerPlugin(ScrollTrigger);
 
-export default function About() {
+export default function About({ theme }) {
   useEffect(() => {
     gsap.fromTo(
       '.about-vis',
@@ -38,7 +38,7 @@ export default function About() {
       <div className="about-inner">
         <div className="about-vis">
           <div className="a-canvas-wrap float-a">
-            <AboutScene />
+            <AboutScene theme={theme} />
           </div>
           <div className="a-float">
             <div className="af-lbl">Experience</div>

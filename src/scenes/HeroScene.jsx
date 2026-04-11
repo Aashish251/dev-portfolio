@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { cappedDevicePixelRatio } from '../lib/canvasQuality';
 
 const vertexShader = `
   varying vec3 vNormal;
@@ -57,9 +58,10 @@ export default function HeroScene() {
     const parent = canvas.parentElement;
     const width = parent.clientWidth || window.innerWidth / 2;
     const height = parent.clientHeight || window.innerHeight;
+    const low = width < 540;
 
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.setPixelRatio(cappedDevicePixelRatio(width));
     renderer.setSize(width, height);
 
     const scene = new THREE.Scene();
@@ -98,11 +100,11 @@ export default function HeroScene() {
       },
     });
 
-    const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1.05, 10), shaderMaterial);
+    const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1.05, low ? 6 : 10), shaderMaterial);
     group.add(core);
 
     const shell = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(1.42, 2),
+      new THREE.IcosahedronGeometry(1.42, low ? 1 : 2),
       new THREE.MeshBasicMaterial({
         color: 0x96a8ff,
         wireframe: true,
@@ -121,7 +123,7 @@ export default function HeroScene() {
       { radius: 2.58, tube: 0.018, rotation: [1.18, 0.42, 1.32], color: 0x7cf5da },
     ].forEach(({ radius, tube, rotation, color }) => {
       const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(radius, tube, 22, 220),
+        new THREE.TorusGeometry(radius, tube, low ? 12 : 22, low ? 100 : 220),
         new THREE.MeshPhongMaterial({
           color,
           emissive: color,
@@ -135,7 +137,7 @@ export default function HeroScene() {
     });
 
     const starGeometry = new THREE.BufferGeometry();
-    const starCount = 700;
+    const starCount = low ? 320 : 700;
     const starPositions = new Float32Array(starCount * 3);
     for (let i = 0; i < starCount; i += 1) {
       starPositions[i * 3] = (Math.random() - 0.5) * 18;
@@ -154,7 +156,7 @@ export default function HeroScene() {
     );
     scene.add(stars);
 
-    const particleCount = 260;
+    const particleCount = low ? 140 : 260;
     const particleGeometry = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
     const particleColors = new Float32Array(particleCount * 3);
@@ -288,16 +290,20 @@ export default function HeroScene() {
     const handleResize = () => {
       const nextWidth = parent.clientWidth || window.innerWidth / 2;
       const nextHeight = parent.clientHeight || window.innerHeight;
+      renderer.setPixelRatio(cappedDevicePixelRatio(nextWidth));
       renderer.setSize(nextWidth, nextHeight);
       camera.aspect = nextWidth / nextHeight;
       camera.updateProjectionMatrix();
     };
     window.addEventListener('resize', handleResize);
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(parent);
 
     return () => {
       cancelAnimationFrame(rafId);
       parent.removeEventListener('mousemove', handleMove);
       window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       shaderMaterial.dispose();
       core.geometry.dispose();
       shell.geometry.dispose();

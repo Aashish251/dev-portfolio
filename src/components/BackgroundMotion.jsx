@@ -7,7 +7,7 @@ import { useEffect, useRef, memo } from 'react';
  * - Reactive to mouse parallax
  * - Automatic palette swap for light / dark
  */
-function BackgroundMotion({ theme = 'dark' }) {
+function BackgroundMotion({ theme = 'dark', animate = true }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -19,9 +19,11 @@ function BackgroundMotion({ theme = 'dark' }) {
 
     const light = theme === 'light';
     const isMobile = window.innerWidth < 768;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let W = 0;
     let H = 0;
     let animId = 0;
+    let tabHidden = document.hidden;
     let mx = 0.5;
     let my = 0.5;
     let time = 0;
@@ -62,8 +64,8 @@ function BackgroundMotion({ theme = 'dark' }) {
     };
 
     /* ── particles (constellation) ── */
-    const COUNT = isMobile ? 36 : 72;
-    const EDGE_DIST = isMobile ? 140 : 180;
+    const COUNT = isMobile ? 28 : reduceMotion ? 40 : 64;
+    const EDGE_DIST = isMobile ? 120 : 160;
     const particles = Array.from({ length: COUNT }, () => ({
       x: Math.random(),
       y: Math.random(),
@@ -91,7 +93,10 @@ function BackgroundMotion({ theme = 'dark' }) {
     const resize = () => {
       W = window.innerWidth;
       H = window.innerHeight;
-      const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1 : 1.5);
+      const dpr = Math.min(
+        window.devicePixelRatio || 1,
+        isMobile || reduceMotion ? 1 : 1.5
+      );
       canvas.width = Math.floor(W * dpr);
       canvas.height = Math.floor(H * dpr);
       canvas.style.width = `${W}px`;
@@ -110,13 +115,19 @@ function BackgroundMotion({ theme = 'dark' }) {
 
     /* ── render loop ── */
     const render = () => {
-      time += 0.003;
+      if (!animate || tabHidden) {
+        animId = 0;
+        return;
+      }
+
+      time += reduceMotion ? 0.0008 : 0.003;
       ctx.clearRect(0, 0, W, H);
 
       const pal = light ? lightPalette : darkPalette;
 
       /* ── 1. Aurora bands ── */
-      const bandCount = isMobile ? 3 : 5;
+      const bandCount = isMobile ? 2 : reduceMotion ? 3 : 5;
+      const auroraStep = isMobile ? 10 : reduceMotion ? 12 : 6;
       for (let b = 0; b < bandCount; b++) {
         const yOffset = (b / bandCount) * H;
         const col = pal[b % pal.length];
@@ -124,7 +135,7 @@ function BackgroundMotion({ theme = 'dark' }) {
 
         ctx.beginPath();
         ctx.moveTo(0, H);
-        for (let px = 0; px <= W; px += 6) {
+        for (let px = 0; px <= W; px += auroraStep) {
           const nx = px / W * 3 + time * (0.5 + b * 0.15);
           const ny = b * 1.7 + time * 0.4;
           const n = noise2d(nx, ny);
@@ -199,31 +210,31 @@ function BackgroundMotion({ theme = 'dark' }) {
         }
       }
 
-      // Draw dots
+      // Draw dots (skip per-particle glow gradients on mobile — major CPU saver)
       particles.forEach((p) => {
         const px = p.x * W;
         const py = p.y * H;
         const col = pal[p.hue];
         const dotAlpha = light ? 0.25 : 0.4;
 
-        // Outer glow
-        const dg = ctx.createRadialGradient(px, py, 0, px, py, p.r * 12);
-        dg.addColorStop(0, `rgba(${col[0]}, ${col[1]}, ${col[2]}, ${dotAlpha * 0.3})`);
-        dg.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = dg;
-        ctx.beginPath();
-        ctx.arc(px, py, p.r * 12, 0, Math.PI * 2);
-        ctx.fill();
+        if (!isMobile && !reduceMotion) {
+          const dg = ctx.createRadialGradient(px, py, 0, px, py, p.r * 12);
+          dg.addColorStop(0, `rgba(${col[0]}, ${col[1]}, ${col[2]}, ${dotAlpha * 0.3})`);
+          dg.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = dg;
+          ctx.beginPath();
+          ctx.arc(px, py, p.r * 12, 0, Math.PI * 2);
+          ctx.fill();
+        }
 
-        // Core dot
         ctx.fillStyle = `rgba(${col[0]}, ${col[1]}, ${col[2]}, ${dotAlpha})`;
         ctx.beginPath();
-        ctx.arc(px, py, p.r, 0, Math.PI * 2);
+        ctx.arc(px, py, p.r * (isMobile ? 1.35 : 1), 0, Math.PI * 2);
         ctx.fill();
       });
 
       /* ── 4. Pulsing orbs (large and slow) ── */
-      const orbCount = isMobile ? 2 : 3;
+      const orbCount = isMobile ? 1 : reduceMotion ? 2 : 3;
       for (let i = 0; i < orbCount; i++) {
         const col = pal[i % pal.length];
         const ox = W * (0.2 + i * 0.3) + Math.sin(time * 0.7 + i * 2) * W * 0.08;
@@ -245,18 +256,34 @@ function BackgroundMotion({ theme = 'dark' }) {
       animId = requestAnimationFrame(render);
     };
 
+    const onVisibility = () => {
+      tabHidden = document.hidden;
+      if (tabHidden) {
+        cancelAnimationFrame(animId);
+        animId = 0;
+      } else if (animate) {
+        resize();
+        cancelAnimationFrame(animId);
+        animId = requestAnimationFrame(render);
+      }
+    };
+
     resize();
-    render();
+    if (animate && !tabHidden) {
+      animId = requestAnimationFrame(render);
+    }
     window.addEventListener('resize', debouncedResize);
     window.addEventListener('mousemove', handleMove, { passive: true });
+    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
       clearTimeout(resizeTimer);
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', debouncedResize);
       window.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [theme]);
+  }, [theme, animate]);
 
   return <canvas className="background-motion" ref={canvasRef} aria-hidden="true" />;
 }

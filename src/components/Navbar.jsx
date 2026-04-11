@@ -1,13 +1,16 @@
-import { useState, useCallback, useEffect } from 'react';
+import { memo, useState, useCallback, useEffect } from 'react';
 import { Moon, SunMedium, Menu, X } from 'lucide-react';
 
-export default function Navbar({ theme, onToggleTheme }) {
+function Navbar({ theme, onToggleTheme }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleClick = useCallback((e, id) => {
     e.preventDefault();
     setMenuOpen(false);
-    document.querySelector(id)?.scrollIntoView({ behavior: 'smooth' });
+    const section = document.querySelector(id);
+    if (!section) return;
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.history.replaceState(null, '', id);
   }, []);
 
   // Close menu on escape key
@@ -54,11 +57,15 @@ export default function Navbar({ theme, onToggleTheme }) {
           className="theme-toggle"
           onClick={onToggleTheme}
           aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-pressed={theme === 'light'}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
         >
           {theme === 'dark' ? <SunMedium size={16} /> : <Moon size={16} />}
-          <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+          <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
         </button>
       </div>
     </nav>
   );
 }
+
+export default memo(Navbar);

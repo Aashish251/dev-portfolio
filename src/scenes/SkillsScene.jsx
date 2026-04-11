@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { cappedDevicePixelRatio } from '../lib/canvasQuality';
 
 export default function SkillsScene() {
   const canvasRef = useRef(null);
@@ -11,9 +12,10 @@ export default function SkillsScene() {
     const parent = canvas.parentElement;
     const width = parent.clientWidth || 560;
     const height = parent.clientHeight || 520;
+    const low = width < 520;
 
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.setPixelRatio(cappedDevicePixelRatio(width));
     renderer.setSize(width, height);
 
     const scene = new THREE.Scene();
@@ -35,7 +37,7 @@ export default function SkillsScene() {
     const field = new THREE.Group();
     scene.add(field);
 
-    const particleCount = 420;
+    const particleCount = low ? 260 : 420;
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
     const colors = new Float32Array(particleCount * 3);
@@ -86,7 +88,7 @@ export default function SkillsScene() {
     field.add(particles);
 
     const core = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(1.18, 4),
+      new THREE.IcosahedronGeometry(1.18, low ? 2 : 4),
       new THREE.MeshPhongMaterial({
         color: 0x161823,
         emissive: 0x111525,
@@ -164,17 +166,21 @@ export default function SkillsScene() {
     const handleResize = () => {
       const nextWidth = parent.clientWidth || 560;
       const nextHeight = parent.clientHeight || 520;
+      renderer.setPixelRatio(cappedDevicePixelRatio(nextWidth));
       renderer.setSize(nextWidth, nextHeight);
       camera.aspect = nextWidth / nextHeight;
       camera.updateProjectionMatrix();
     };
 
     window.addEventListener('resize', handleResize);
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(parent);
 
     return () => {
       cancelAnimationFrame(rafId);
       parent.removeEventListener('mousemove', handleMove);
       window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       geometry.dispose();
       particles.material.dispose();
       core.geometry.dispose();

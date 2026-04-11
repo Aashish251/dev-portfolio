@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { cappedDevicePixelRatio } from '../lib/canvasQuality';
 
 export default function NeonCityScene() {
   const canvasRef = useRef(null);
@@ -11,9 +12,10 @@ export default function NeonCityScene() {
 
     const W = par.clientWidth || 600;
     const H = par.clientHeight || 250;
+    const low = W < 520;
 
     const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    renderer.setPixelRatio(cappedDevicePixelRatio(W));
     renderer.setClearColor(0x0a0018);
     renderer.setSize(W, H);
 
@@ -28,7 +30,8 @@ export default function NeonCityScene() {
     const bc = [0xf4845f, 0x4f46e5, 0x6eb5ff, 0x7c3aed, 0x6ee7b7];
     const buildings = [];
 
-    for (let i = 0; i < 28; i++) {
+    const buildingCount = low ? 18 : 28;
+    for (let i = 0; i < buildingCount; i++) {
       const bh = 0.4 + Math.random() * 2.8;
       const g = new THREE.BoxGeometry(0.45, 0.45 + bh, 0.45);
       const m = new THREE.MeshPhongMaterial({
@@ -43,7 +46,7 @@ export default function NeonCityScene() {
       scene.add(mesh);
     }
 
-    const pCount = 600;
+    const pCount = low ? 320 : 600;
     const pP = new Float32Array(pCount * 3);
     for (let i = 0; i < pCount; i++) {
       pP[i * 3] = (Math.random() - 0.5) * 18;
@@ -75,15 +78,19 @@ export default function NeonCityScene() {
     const handleResize = () => {
       const nW = par.clientWidth || 600;
       const nH = par.clientHeight || 250;
+      renderer.setPixelRatio(cappedDevicePixelRatio(nW));
       renderer.setSize(nW, nH);
       camera.aspect = nW / nH;
       camera.updateProjectionMatrix();
     };
     window.addEventListener('resize', handleResize);
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(par);
 
     return () => {
       cancelAnimationFrame(rafId);
       window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       buildings.forEach(({ geometry, material }) => {
         geometry.dispose();
         material.dispose();

@@ -1,20 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import gsap from 'gsap';
 
-export default function CustomCursor() {
+const setTranslate = (el, x, y) => {
+  if (!el) return;
+  el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
+};
+
+/** Desktop-only: mounts only when parent decides coarse pointer is false — effect deps stay `[]`. */
+function CustomCursorInner() {
   const dotRef = useRef(null);
   const ringRef = useRef(null);
   const labelRef = useRef(null);
-  const [isTouch, setIsTouch] = useState(false);
 
   useEffect(() => {
-    // Detect touch device — skip cursor entirely
-    const hasCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
-    if (hasCoarsePointer) {
-      setIsTouch(true);
-      return;
-    }
-
     let mouseX = 0;
     let mouseY = 0;
     let ringX = 0;
@@ -35,7 +32,7 @@ export default function CustomCursor() {
     const handleMove = (event) => {
       mouseX = event.clientX;
       mouseY = event.clientY;
-      gsap.set(dotRef.current, { x: mouseX, y: mouseY });
+      setTranslate(dotRef.current, mouseX, mouseY);
     };
 
     const handleOver = (event) => {
@@ -64,7 +61,7 @@ export default function CustomCursor() {
     const loop = () => {
       ringX += (mouseX - ringX) * 0.14;
       ringY += (mouseY - ringY) * 0.14;
-      gsap.set(ringRef.current, { x: ringX, y: ringY });
+      setTranslate(ringRef.current, ringX, ringY);
       rafId = requestAnimationFrame(loop);
     };
     loop();
@@ -77,9 +74,6 @@ export default function CustomCursor() {
     };
   }, []);
 
-  // Don't render cursor elements on touch devices at all
-  if (isTouch) return null;
-
   return (
     <>
       <div id="c-dot" ref={dotRef}></div>
@@ -88,4 +82,13 @@ export default function CustomCursor() {
       </div>
     </>
   );
+}
+
+export default function CustomCursor() {
+  const [isTouch] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+  );
+
+  if (isTouch) return null;
+  return <CustomCursorInner />;
 }

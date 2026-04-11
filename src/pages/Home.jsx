@@ -54,7 +54,7 @@ const skillCloud = [
   'React',
 ];
 
-function Home({ animateIntro }) {
+function Home({ animateIntro, theme }) {
   const pageRef = useRef(null);
   const heroRef = useRef(null);
   const projectTrackRef = useRef(null);
@@ -254,7 +254,7 @@ function Home({ animateIntro }) {
             const node = counterRefs.current[index];
             if (!node) return;
 
-            gsap.fromTo(
+            gsap.to(
               { value: 0 },
               {
                 value: stat.value,
@@ -275,7 +275,10 @@ function Home({ animateIntro }) {
 
   const smoothScroll = (event, id) => {
     event.preventDefault();
-    document.querySelector(id)?.scrollIntoView({ behavior: 'smooth' });
+    const section = document.querySelector(id);
+    if (!section) return;
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.history.replaceState(null, '', id);
   };
 
   const setCounterRef = (element) => {
@@ -286,7 +289,7 @@ function Home({ animateIntro }) {
 
   return (
     <div ref={pageRef}>
-      <section id="hero" ref={heroRef}>
+      <section id="hero" ref={heroRef} aria-label="Hero introduction">
         <div className="hero-noise"></div>
         <div className="hero-copy">
           <div className="hero-kicker">Software Engineer / Backend / Cloud / GenAI</div>
@@ -343,6 +346,14 @@ function Home({ animateIntro }) {
             </div>
           </div>
         </div>
+
+        {/* Scroll indicator */}
+        <div className="scroll-invite" aria-hidden="true">
+          <span className="scroll-invite-text">Scroll to explore</span>
+          <div className="scroll-invite-line">
+            <div className="scroll-invite-dot" />
+          </div>
+        </div>
       </section>
 
       <section className="hero-rail">
@@ -363,10 +374,11 @@ function Home({ animateIntro }) {
         </article>
       </section>
 
-      <About />
+      <About theme={theme} />
       <Experience />
 
-      <section id="projects">
+      <section id="projects" aria-label="Projects">
+        <span className="section-number" aria-hidden="true">03</span>
         <div className="section-heading">
           <div className="sec-tag">Selected Work</div>
           <h2 className="section-title">Projects staged like product stories.</h2>
@@ -409,7 +421,8 @@ function Home({ animateIntro }) {
         </div>
       </section>
 
-      <section id="architecture">
+      <section id="architecture" aria-label="Architecture">
+        <span className="section-number" aria-hidden="true">04</span>
         <div className="section-heading">
           <div className="sec-tag">System Flow</div>
           <h2 className="section-title">A small architecture story inside the portfolio.</h2>
@@ -449,7 +462,8 @@ function Home({ animateIntro }) {
         </div>
       </section>
 
-      <section id="skills">
+      <section id="skills" aria-label="Skills">
+        <span className="section-number" aria-hidden="true">05</span>
         <div className="section-heading">
           <div className="sec-tag">Skills Cloud</div>
           <h2 className="section-title">A floating field instead of a static list.</h2>
@@ -485,7 +499,8 @@ function Home({ animateIntro }) {
         </div>
       </section>
 
-      <section id="achievements">
+      <section id="achievements" aria-label="Achievements">
+        <span className="section-number" aria-hidden="true">06</span>
         <div className="section-heading">
           <div className="sec-tag">Recognition</div>
           <h2 className="section-title">Large numbers, backed by real work.</h2>
@@ -525,7 +540,8 @@ function Home({ animateIntro }) {
         </div>
       </section>
 
-      <section id="contact">
+      <section id="contact" aria-label="Contact">
+        <span className="section-number" aria-hidden="true">08</span>
         <div className="section-heading">
           <div className="sec-tag">Contact</div>
           <h2 className="section-title">A command-palette close, built for engineers.</h2>

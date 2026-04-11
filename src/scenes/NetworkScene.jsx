@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { cappedDevicePixelRatio } from '../lib/canvasQuality';
 
 export default function NetworkScene() {
   const canvasRef = useRef(null);
@@ -13,7 +14,7 @@ export default function NetworkScene() {
     const H = par.clientHeight || 250;
 
     const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    renderer.setPixelRatio(cappedDevicePixelRatio(W));
     renderer.setClearColor(0x041228);
     renderer.setSize(W, H);
 
@@ -30,7 +31,9 @@ export default function NetworkScene() {
       (c) => new THREE.MeshPhongMaterial({ color: c, emissive: c, emissiveIntensity: 0.3 })
     );
 
-    for (let i = 0; i < 20; i++) {
+    const low = W < 520;
+    const nodeCount = low ? 14 : 20;
+    for (let i = 0; i < nodeCount; i++) {
       const m = new THREE.Mesh(nGeo, nodeMaterials[i % 4]);
       m.position.set(
         (Math.random() - 0.5) * 7,
@@ -47,7 +50,7 @@ export default function NetworkScene() {
     }
 
     // Pre-allocate line geometry with a pool to avoid GC churn
-    const maxEdges = (20 * 19) / 2;
+    const maxEdges = (nodeCount * (nodeCount - 1)) / 2;
     const edgePositions = new Float32Array(maxEdges * 6);
     const edgeGeometry = new THREE.BufferGeometry();
     const posAttr = new THREE.BufferAttribute(edgePositions, 3);
@@ -106,15 +109,19 @@ export default function NetworkScene() {
     const handleResize = () => {
       const nW = par.clientWidth || 600;
       const nH = par.clientHeight || 250;
+      renderer.setPixelRatio(cappedDevicePixelRatio(nW));
       renderer.setSize(nW, nH);
       camera.aspect = nW / nH;
       camera.updateProjectionMatrix();
     };
     window.addEventListener('resize', handleResize);
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(par);
 
     return () => {
       cancelAnimationFrame(rafId);
       window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       nGeo.dispose();
       nodeMaterials.forEach((m) => m.dispose());
       edgeGeometry.dispose();
