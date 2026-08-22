@@ -803,7 +803,7 @@ function reveal(targets,trigger,start,fromV,toV){
     setTimeout(()=>{
       const el0 = els[0];
       if(gsap.isTweening(el0)) return;
-      const gsapTouched = el0.style.opacity!=='' || el0.style.transform!=='' || el0.style.translate!=='');
+      const gsapTouched = el0.style.opacity!=='' || el0.style.transform!=='' || el0.style.translate!=='';
       if(!gsapTouched) gsap.set(els,{opacity:1,x:0,y:0,yPercent:0,scale:1});
     },1500);
   }});},{rootMargin:'0px 0px -5% 0px'});
