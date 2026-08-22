@@ -10,6 +10,8 @@ import NetworkScene from '../scenes/NetworkScene';
 
 gsap.registerPlugin(ScrollTrigger);
 
+const currentYear = new Date().getFullYear();
+
 const marqueeItems = [
   { label: 'Java', highlight: true },
   { label: 'Spring Boot', highlight: false },
@@ -413,7 +415,7 @@ function Home({ animateIntro }) {
       </section>
 
       <footer>
-        <span className="fc">© 2024 Aashish Ravidas</span>
+        <span className="fc">© {currentYear} Aashish Ravidas</span>
         <span className="fc">Mumbai · MNIT Jaipur · HCLTech</span>
       </footer>
     </>
